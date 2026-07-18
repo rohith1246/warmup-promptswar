@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Browse and review your historical cooking plans, grocery lists, and budget recipes.">
+    <title>Meal Plan History - AI Cooking To-Do List</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Plan History</h1>
+            <p>Review and track your previously generated meal plans.</p>
+        </header>
+
+        <nav class="nav-bar">
+            <a href="/" class="btn-nav" id="nav-home">Home Planner</a>
+            <a href="/history" class="btn-nav active" id="nav-history">View History</a>
+        </nav>
+
+        <main>
+            {% if error %}
+            <div class="error-banner" style="display: block;">{{ error }}</div>
+            {% endif %}
+
+            <section class="history-list">
+                {% if not plans %}
+                <div class="planner-card" style="text-align: center; padding: 3rem;">
+                    <p style="color: var(--text-muted); font-size: 1.1rem; margin-bottom: 1.5rem;">You haven't generated any cooking plans yet.</p>
+                    <a href="/" class="btn-primary" style="display: inline-block; width: auto; padding: 0.8rem 2rem; text-decoration: none;">Create Your First Plan</a>
+                </div>
+                {% else %}
+                    {% for plan in plans %}
+                    <article class="history-item" id="plan-card-{{ plan.id }}">
+                        <div class="history-header" onclick="toggleAccordion('plan-card-{{ plan.id }}')">
+                            <div class="history-meta">
+                                <span class="meta-pill budget">${{ "%.2f"|format(plan.budget) }} USD</span>
+                                <span class="meta-pill people">{{ plan.people_count }} {% if plan.people_count == 1 %}Person{% else %}People{% endif %}</span>
+                                <span class="meta-pill pref">{{ plan.preference }}</span>
+                                <span class="provider-badge {{ plan.ai_provider }}">{{ plan.ai_provider }}</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 1rem;">
+                                <time class="history-date" datetime="{{ plan.created_at }}">{{ plan.created_at[:10] }} {{ plan.created_at[11:16] }}</time>
+                                <span class="history-arrow">▼</span>
+                            </div>
+                        </div>
+
+                        <div class="history-content">
+                            <div style="margin: 1.5rem 0;">
+                                <strong>Budget Feasibility:</strong>
+                                <p style="color: var(--text-muted); margin-top: 0.5rem; font-size: 0.95rem;">{{ plan.budget_feasibility }}</p>
+                            </div>
+
+                            <h3 class="section-title" style="font-size: 1.3rem; margin-top: 1.5rem;">Meals</h3>
+                            <div class="meals-grid" style="margin-bottom: 1.5rem;">
+                                <!-- Breakfast -->
+                                <div class="meal-card" style="padding: 1.2rem; box-shadow: none; border: 1px solid rgba(61, 106, 69, 0.08);">
+                                    <span class="meal-badge" style="font-size: 0.75rem;">Breakfast</span>
+                                    <h4 style="font-size: 1.1rem; border: none; margin: 0.5rem 0;">{{ plan.breakfast.recipe_name }}</h4>
+                                    
+                                    <h4 style="font-size: 0.85rem; margin-top: 0.8rem;">Ingredients:</h4>
+                                    <ul style="padding-left: 1rem; font-size: 0.85rem;">
+                                        {% for ing in plan.breakfast.ingredients %}
+                                        <li>{{ ing }}</li>
+                                        {% endfor %}
+                                    </ul>
+
+                                    <h4 style="font-size: 0.85rem; margin-top: 0.8rem;">Instructions:</h4>
+                                    <ol style="padding-left: 1rem; font-size: 0.85rem;">
+                                        {% for inst in plan.breakfast.instructions %}
+                                        <li>{{ inst }}</li>
+                                        {% endfor %}
+                                    </ol>
+                                </div>
+
+                                <!-- Lunch -->
+                                <div class="meal-card" style="padding: 1.2rem; box-shadow: none; border: 1px solid rgba(61, 106, 69, 0.08);">
+                                    <span class="meal-badge" style="font-size: 0.75rem;">Lunch</span>
+                                    <h4 style="font-size: 1.1rem; border: none; margin: 0.5rem 0;">{{ plan.lunch.recipe_name }}</h4>
+                                    
+                                    <h4 style="font-size: 0.85rem; margin-top: 0.8rem;">Ingredients:</h4>
+                                    <ul style="padding-left: 1rem; font-size: 0.85rem;">
+                                        {% for ing in plan.lunch.ingredients %}
+                                        <li>{{ ing }}</li>
+                                        {% endfor %}
+                                    </ul>
+
+                                    <h4 style="font-size: 0.85rem; margin-top: 0.8rem;">Instructions:</h4>
+                                    <ol style="padding-left: 1rem; font-size: 0.85rem;">
+                                        {% for inst in plan.lunch.instructions %}
+                                        <li>{{ inst }}</li>
+                                        {% endfor %}
+                                    </ol>
+                                </div>
+
+                                <!-- Dinner -->
+                                <div class="meal-card" style="padding: 1.2rem; box-shadow: none; border: 1px solid rgba(61, 106, 69, 0.08);">
+                                    <span class="meal-badge" style="font-size: 0.75rem;">Dinner</span>
+                                    <h4 style="font-size: 1.1rem; border: none; margin: 0.5rem 0;">{{ plan.dinner.recipe_name }}</h4>
+                                    
+                                    <h4 style="font-size: 0.85rem; margin-top: 0.8rem;">Ingredients:</h4>
+                                    <ul style="padding-left: 1rem; font-size: 0.85rem;">
+                                        {% for ing in plan.dinner.ingredients %}
+                                        <li>{{ ing }}</li>
+                                        {% endfor %}
+                                    </ul>
+
+                                    <h4 style="font-size: 0.85rem; margin-top: 0.8rem;">Instructions:</h4>
+                                    <ol style="padding-left: 1rem; font-size: 0.85rem;">
+                                        {% for inst in plan.dinner.instructions %}
+                                        <li>{{ inst }}</li>
+                                        {% endfor %}
+                                    </ol>
+                                </div>
+                            </div>
+
+                            <div class="details-grid">
+                                <!-- Grocery To-Do list -->
+                                <div class="detail-card" style="padding: 1.2rem; box-shadow: none; border: 1px solid rgba(61, 106, 69, 0.08);">
+                                    <h3 style="font-size: 1.1rem; margin-bottom: 0.8rem;">Grocery List Checklist</h3>
+                                    <ul class="todo-list">
+                                        {% for item in plan.grocery_list %}
+                                        <li class="todo-item" onclick="toggleTodoCheckbox(event, this)">
+                                            <input type="checkbox" id="grocery-{{ plan.id }}-{{ loop.index }}">
+                                            <span>{{ item }}</span>
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+
+                                <!-- Ingredient Substitutions -->
+                                <div class="detail-card" style="padding: 1.2rem; box-shadow: none; border: 1px solid rgba(61, 106, 69, 0.08);">
+                                    <h3 style="font-size: 1.1rem; margin-bottom: 0.8rem;">Ingredient Substitutions</h3>
+                                    <div class="sub-list">
+                                        {% if plan.substitutions %}
+                                            {% for original, replacement in plan.substitutions.items() %}
+                                            <div class="sub-item" style="padding: 0.6rem 0.8rem;">
+                                                <span class="sub-original">{{ original }}</span>
+                                                <span class="sub-arrow">➔</span>
+                                                <span class="sub-replacement">{{ replacement }}</span>
+                                            </div>
+                                            {% endfor %}
+                                        {% else %}
+                                            <p style="color: var(--text-muted); font-size: 0.85rem;">No substitutions needed.</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+                    {% endfor %}
+                {% endif %}
+            </section>
+        </main>
+    </div>
+
+    <script>
+        function toggleAccordion(id) {
+            const el = document.getElementById(id);
+            if (el.classList.contains('open')) {
+                el.classList.remove('open');
+            } else {
+                // Close other accordions first for a clean experience
+                document.querySelectorAll('.history-item').forEach(item => {
+                    item.classList.remove('open');
+                });
+                el.classList.add('open');
+            }
+        }
+
+        function toggleTodoCheckbox(event, liElement) {
+            const checkbox = liElement.querySelector('input[type="checkbox"]');
+            // If the user didn't click the checkbox directly, toggle it
+            if (event.target !== checkbox) {
+                checkbox.checked = !checkbox.checked;
+            }
+        }
+    </script>
+</body>
+</html>

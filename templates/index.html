@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Plan healthy, delicious meals based on your budget, party size, and food preferences. Get dynamic recipes, shopping list checklists, and ingredient substitutions.">
+    <title>AI Cooking To-Do List & Meal Planner</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>AI Cooking To-Do List</h1>
+            <p>Generate a budget-friendly 1-day meal plan and automatic grocery checklist.</p>
+        </header>
+
+        <nav class="nav-bar">
+            <a href="/" class="btn-nav active" id="nav-home">Home Planner</a>
+            <a href="/history" class="btn-nav" id="nav-history">View History</a>
+        </nav>
+
+        <main>
+            <!-- Error Banner -->
+            <div id="error-banner" class="error-banner"></div>
+
+            <!-- Form Card -->
+            <section class="planner-card">
+                <form id="meal-planner-form">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="input-budget">Daily Budget ($ USD)</label>
+                            <input type="number" id="input-budget" name="budget" min="1" step="0.01" placeholder="e.g. 30" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="input-people">Number of People</label>
+                            <input type="number" id="input-people" name="people" min="1" placeholder="e.g. 2" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="input-preference">Food Preference</label>
+                            <select id="input-preference" name="preference" required>
+                                <option value="" disabled selected>Select option</option>
+                                <option value="Veg">Vegetarian</option>
+                                <option value="Non-Veg">Non-Vegetarian</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" id="btn-generate" class="btn-primary">Generate Cooking Plan & To-Do List</button>
+                </form>
+            </section>
+
+            <!-- Loading Spinner -->
+            <section id="loading-spinner" class="loading-container">
+                <div class="spinner"></div>
+                <p class="loading-text">Crafting your recipe list & grocery to-dos...</p>
+            </section>
+
+            <!-- Dynamic Results Container -->
+            <section id="results-container">
+                <div class="feasibility-card">
+                    <span id="result-provider" class="provider-badge">gemini</span>
+                    <h3>Budget Feasibility Analysis</h3>
+                    <p id="result-feasibility" style="margin-top: 1rem; color: var(--text-muted);"></p>
+                </div>
+
+                <h3 class="section-title">Your 1-Day Meal Plan</h3>
+                <div class="meals-grid">
+                    <!-- Breakfast Card -->
+                    <div class="meal-card">
+                        <span class="meal-badge">Breakfast</span>
+                        <h3 id="bf-name" class="meal-name">Recipe Name</h3>
+                        <h4>Ingredients</h4>
+                        <ul id="bf-ingredients"></ul>
+                        <h4>Instructions</h4>
+                        <ol id="bf-instructions"></ol>
+                    </div>
+
+                    <!-- Lunch Card -->
+                    <div class="meal-card">
+                        <span class="meal-badge">Lunch</span>
+                        <h3 id="lunch-name" class="meal-name">Recipe Name</h3>
+                        <h4>Ingredients</h4>
+                        <ul id="lunch-ingredients"></ul>
+                        <h4>Instructions</h4>
+                        <ol id="lunch-instructions"></ol>
+                    </div>
+
+                    <!-- Dinner Card -->
+                    <div class="meal-card">
+                        <span class="meal-badge">Dinner</span>
+                        <h3 id="dinner-name" class="meal-name">Recipe Name</h3>
+                        <h4>Ingredients</h4>
+                        <ul id="dinner-ingredients"></ul>
+                        <h4>Instructions</h4>
+                        <ol id="dinner-instructions"></ol>
+                    </div>
+                </div>
+
+                <div class="details-grid">
+                    <!-- Grocery To-Do list -->
+                    <div class="detail-card">
+                        <h3>Grocery List Checklist</h3>
+                        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">Check off items as you buy them.</p>
+                        <ul id="grocery-todo-list" class="todo-list"></ul>
+                    </div>
+
+                    <!-- Ingredient Substitutions -->
+                    <div class="detail-card">
+                        <h3>Ingredient Substitutions</h3>
+                        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">Allergen or budget friendly alternatives.</p>
+                        <div id="substitution-list" class="sub-list"></div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        document.getElementById('meal-planner-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const budget = document.getElementById('input-budget').value;
+            const people = document.getElementById('input-people').value;
+            const preference = document.getElementById('input-preference').value;
+            
+            const btnGenerate = document.getElementById('btn-generate');
+            const loadingSpinner = document.getElementById('loading-spinner');
+            const resultsContainer = document.getElementById('results-container');
+            const errorBanner = document.getElementById('error-banner');
+
+            // Reset view
+            errorBanner.style.display = 'none';
+            resultsContainer.style.display = 'none';
+            loadingSpinner.style.display = 'flex';
+            btnGenerate.disabled = true;
+
+            try {
+                const response = await fetch('/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        budget: budget,
+                        people: people,
+                        preference: preference
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to generate meal plan. Please check your credentials and try again.');
+                }
+
+                // Check for warnings (e.g. database saving failed but plan generated)
+                if (data.warning) {
+                    console.warn(data.warning);
+                }
+
+                const plan = data.plan || data;
+                const provider = data.ai_provider || data.provider || 'gemini';
+
+                // Display Provider
+                const providerBadge = document.getElementById('result-provider');
+                providerBadge.textContent = provider;
+                providerBadge.className = `provider-badge ${provider}`;
+
+                // Display Feasibility
+                document.getElementById('result-feasibility').textContent = plan.budget_feasibility;
+
+                // Populate Breakfast
+                document.getElementById('bf-name').textContent = plan.breakfast.recipe_name;
+                populateList('bf-ingredients', plan.breakfast.ingredients, 'li');
+                populateList('bf-instructions', plan.breakfast.instructions, 'li');
+
+                // Populate Lunch
+                document.getElementById('lunch-name').textContent = plan.lunch.recipe_name;
+                populateList('lunch-ingredients', plan.lunch.ingredients, 'li');
+                populateList('lunch-instructions', plan.lunch.instructions, 'li');
+
+                // Populate Dinner
+                document.getElementById('dinner-name').textContent = plan.dinner.recipe_name;
+                populateList('dinner-ingredients', plan.dinner.ingredients, 'li');
+                populateList('dinner-instructions', plan.dinner.instructions, 'li');
+
+                // Populate Grocery List (Checklist To-Dos)
+                const groceryListEl = document.getElementById('grocery-todo-list');
+                groceryListEl.innerHTML = '';
+                if (plan.grocery_list && plan.grocery_list.length > 0) {
+                    plan.grocery_list.forEach((item, index) => {
+                        const li = document.createElement('li');
+                        li.className = 'todo-item';
+                        
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.id = `grocery-item-${index}`;
+                        
+                        const span = document.createElement('span');
+                        span.textContent = item;
+                        
+                        // Toggle checkbox state on clicking the list item text
+                        li.addEventListener('click', (e) => {
+                            if (e.target !== checkbox) {
+                                checkbox.checked = !checkbox.checked;
+                            }
+                        });
+
+                        li.appendChild(checkbox);
+                        li.appendChild(span);
+                        groceryListEl.appendChild(li);
+                    });
+                } else {
+                    groceryListEl.innerHTML = '<li style="color: var(--text-muted);">No grocery items generated.</li>';
+                }
+
+                // Populate Substitutions
+                const substitutionListEl = document.getElementById('substitution-list');
+                substitutionListEl.innerHTML = '';
+                if (plan.substitutions && Object.keys(plan.substitutions).length > 0) {
+                    Object.entries(plan.substitutions).forEach(([original, replacement]) => {
+                        const div = document.createElement('div');
+                        div.className = 'sub-item';
+                        
+                        const spanOrig = document.createElement('span');
+                        spanOrig.className = 'sub-original';
+                        spanOrig.textContent = original;
+
+                        const spanArrow = document.createElement('span');
+                        spanArrow.className = 'sub-arrow';
+                        spanArrow.textContent = '➔';
+
+                        const spanRep = document.createElement('span');
+                        spanRep.className = 'sub-replacement';
+                        spanRep.textContent = replacement;
+
+                        div.appendChild(spanOrig);
+                        div.appendChild(spanArrow);
+                        div.appendChild(spanRep);
+                        substitutionListEl.appendChild(div);
+                    });
+                } else {
+                    substitutionListEl.innerHTML = '<p style="color: var(--text-muted); font-size: 0.9rem;">No substitutions needed.</p>';
+                }
+
+                // Show Results
+                resultsContainer.style.display = 'block';
+                // Scroll to results smoothly
+                resultsContainer.scrollIntoView({ behavior: 'smooth' });
+
+            } catch (err) {
+                console.error(err);
+                errorBanner.textContent = err.message;
+                errorBanner.style.display = 'block';
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } finally {
+                loadingSpinner.style.display = 'none';
+                btnGenerate.disabled = false;
+            }
+        });
+
+        function populateList(elementId, itemsArray, tag) {
+            const listEl = document.getElementById(elementId);
+            listEl.innerHTML = '';
+            if (itemsArray && itemsArray.length > 0) {
+                itemsArray.forEach(item => {
+                    const el = document.createElement(tag);
+                    el.textContent = item;
+                    listEl.appendChild(el);
+                });
+            } else {
+                listEl.innerHTML = `<li>None</li>`;
+            }
+        }
+    </script>
+</body>
+</html>
