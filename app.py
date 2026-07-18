@@ -64,8 +64,10 @@ The JSON schema must match exactly:
 }}
 """
 
+import requests
+
 def generate_plan_gemini(prompt):
-    """Call Gemini API to generate the plan."""
+    """Call Gemini API to generate the plan, trying multiple active model versions."""
     gemini_key = os.getenv("GEMINI_API_KEY")
     if not gemini_key or gemini_key == "your_gemini_api_key_here":
         raise ValueError("Gemini API key is not configured or is the default placeholder.")
@@ -73,46 +75,71 @@ def generate_plan_gemini(prompt):
     import google.generativeai as genai
     genai.configure(api_key=gemini_key)
     
-    # Use gemini-1.5-flash for speed and reliability
-    model = genai.GenerativeModel("gemini-1.5-flash")
+    # Try multiple active model versions in sequence
+    models_to_try = [
+        "gemini-2.5-flash", 
+        "gemini-2.5-pro", 
+        "gemini-1.5-flash-latest",
+        "gemini-1.5-pro-latest"
+    ]
     
-    logger.info("Sending request to Gemini API...")
-    response = model.generate_content(
-        prompt,
-        generation_config={"response_mime_type": "application/json"}
-    )
-    
-    if not response.text:
-        raise ValueError("Received empty response from Gemini API.")
-        
-    return json.loads(response.text.strip())
+    last_err = None
+    for model_name in models_to_try:
+        try:
+            logger.info(f"Attempting Gemini generation using model: {model_name}...")
+            model = genai.GenerativeModel(model_name)
+            response = model.generate_content(
+                prompt,
+                generation_config={"response_mime_type": "application/json"}
+            )
+            if response.text:
+                return json.loads(response.text.strip())
+            else:
+                logger.warning(f"Model {model_name} returned empty text.")
+        except Exception as e:
+            logger.warning(f"Failed with model {model_name}: {e}")
+            last_err = e
+            
+    raise last_err or ValueError("All Gemini models failed to generate content.")
 
 def generate_plan_groq(prompt):
-    """Call Groq API as a fallback to generate the plan."""
+    """Call Groq API via direct HTTP request to bypass SDK proxy bugs."""
     groq_key = os.getenv("GROQ_API_KEY")
     if not groq_key or groq_key == "your_groq_api_key_here":
         raise ValueError("Groq API key is not configured or is the default placeholder.")
 
-    from groq import Groq
-    client = Groq(api_key=groq_key)
+    headers = {
+        "Authorization": f"Bearer {groq_key}",
+        "Content-Type": "application/json"
+    }
     
-    logger.info("Sending fallback request to Groq API...")
-    # Using Llama-3.3-70b-specdec or llama-3.3-70b-versatile or fallback to llama3-8b-8192
-    completion = client.chat.completions.create(
-        model="llama-3.3-70b-specdec",
-        messages=[
+    payload = {
+        "model": "llama-3.3-70b-specdec",
+        "messages": [
             {"role": "system", "content": "You are a JSON generator. You only output valid JSON conforming to the requested schema."},
             {"role": "user", "content": prompt}
         ],
-        response_format={"type": "json_object"},
-        temperature=0.7
+        "response_format": {"type": "json_object"},
+        "temperature": 0.7
+    }
+
+    logger.info("Sending fallback request to Groq API via direct HTTP POST...")
+    response = requests.post(
+        "https://api.groq.com/openai/v1/chat/completions",
+        headers=headers,
+        json=payload,
+        timeout=30
     )
     
-    content = completion.choices[0].message.content
+    response.raise_for_status()
+    res_json = response.json()
+    content = res_json["choices"][0]["message"]["content"]
+    
     if not content:
         raise ValueError("Received empty response from Groq API.")
         
     return json.loads(content.strip())
+
 
 # Routes
 @app.route("/")
