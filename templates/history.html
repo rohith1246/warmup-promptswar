@@ -35,7 +35,7 @@
                     <article class="history-item" id="plan-card-{{ plan.id }}">
                         <div class="history-header" onclick="toggleAccordion('plan-card-{{ plan.id }}')">
                             <div class="history-meta">
-                                <span class="meta-pill budget">${{ "%.2f"|format(plan.budget) }} USD</span>
+                                <span class="meta-pill budget">₹{{ "%.2f"|format(plan.budget) }} INR</span>
                                 <span class="meta-pill people">{{ plan.people_count }} {% if plan.people_count == 1 %}Person{% else %}People{% endif %}</span>
                                 <span class="meta-pill pref">{{ plan.preference }}</span>
                                 <span class="provider-badge {{ plan.ai_provider }}">{{ plan.ai_provider }}</span>

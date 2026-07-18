@@ -29,7 +29,7 @@ except Exception as e:
 def get_cooking_plan_prompt(budget, people, preference):
     return f"""You are a professional chef and budget-friendly meal planner.
 Generate a structured 1-day meal plan (Breakfast, Lunch, Dinner) based on these inputs:
-- Budget: ${budget} USD total for the day
+- Budget: ₹{budget} INR total for the day
 - Number of people: {people}
 - Food preference: {preference} (Veg/Non-Veg)
 
@@ -60,9 +60,10 @@ The JSON schema must match exactly:
   "substitutions": {{
     "original_ingredient": "alternative_ingredient"
   }},
-  "budget_feasibility": "Provide a descriptive explanation of how these meals fit within the budget of ${budget} USD for {people} people."
+  "budget_feasibility": "Provide a descriptive explanation of how these meals fit within the budget of ₹{budget} INR for {people} people."
 }}
 """
+
 
 import requests
 
