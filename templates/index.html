@@ -149,11 +149,19 @@
                     })
                 });
 
-                const data = await response.json();
+                let data;
+                const contentType = response.headers.get("content-type");
+                if (contentType && contentType.includes("application/json")) {
+                    data = await response.json();
+                } else {
+                    const text = await response.text();
+                    throw new Error(`Server returned a non-JSON response (Status ${response.status}): ${text.substring(0, 150)}...`);
+                }
 
                 if (!response.ok) {
                     throw new Error(data.error || 'Failed to generate meal plan. Please check your credentials and try again.');
                 }
+
 
                 // Check for warnings (e.g. database saving failed but plan generated)
                 if (data.warning) {
